@@ -119,10 +119,10 @@ func (littleEndian) Float64(r *offsetReader) (float64, error) {
 // String ...
 func (e littleEndian) String(r *offsetReader) (string, error) {
 	strLen, err := e.Int16(r)
-	if err != nil {
+	if err != nil || strLen < 0 {
 		return "", BufferOverrunError{Op: "String"}
 	}
-	if strLen < 0 || int(strLen) > maxStringSize {
+	if int(strLen) > maxStringSize {
 		return "", InvalidStringError{Off: r.off, N: uint(uint16(strLen)), Err: errStringTooLong}
 	}
 	b := make([]byte, uint16(strLen))
@@ -280,10 +280,10 @@ func (bigEndian) Float64(r *offsetReader) (float64, error) {
 // String ...
 func (e bigEndian) String(r *offsetReader) (string, error) {
 	strLen, err := e.Int16(r)
-	if err != nil {
+	if err != nil || strLen < 0 {
 		return "", BufferOverrunError{Op: "String"}
 	}
-	if strLen < 0 || int(strLen) > maxStringSize {
+	if int(strLen) > maxStringSize {
 		return "", InvalidStringError{Off: r.off, N: uint(uint16(strLen)), Err: errStringTooLong}
 	}
 	b := make([]byte, uint16(strLen))
