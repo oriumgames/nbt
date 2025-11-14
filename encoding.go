@@ -192,7 +192,7 @@ func (e networkLittleEndian) Int32Slice(r *offsetReader) ([]int32, error) {
 		return nil, BufferOverrunError{Op: "Int32Slice"}
 	}
 	m := make([]int32, n)
-	for i := int32(0); i < n; i++ {
+	for i := range n {
 		m[i], err = e.Int32(r)
 		if err != nil {
 			return nil, BufferOverrunError{Op: "Int32Slice"}
@@ -208,7 +208,7 @@ func (e networkLittleEndian) Int64Slice(r *offsetReader) ([]int64, error) {
 		return nil, BufferOverrunError{Op: "Int64Slice"}
 	}
 	m := make([]int64, n)
-	for i := int32(0); i < n; i++ {
+	for i := range n {
 		m[i], err = e.Int64(r)
 		if err != nil {
 			return nil, BufferOverrunError{Op: "Int64Slice"}

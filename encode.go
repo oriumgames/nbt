@@ -162,7 +162,7 @@ func (e *Encoder) encode(val reflect.Value, tagName string) error {
 				return err
 			}
 			data := make([]byte, n)
-			for i := 0; i < n; i++ {
+			for i := range n {
 				data[i] = byte(val.Index(i).Uint())
 			}
 			if _, err := e.w.Write(data); err != nil {
@@ -175,7 +175,7 @@ func (e *Encoder) encode(val reflect.Value, tagName string) error {
 			if err := e.Encoding.WriteInt32(e.w, int32(n)); err != nil {
 				return err
 			}
-			for i := 0; i < n; i++ {
+			for i := range n {
 				if err := e.Encoding.WriteInt32(e.w, int32(val.Index(i).Int())); err != nil {
 					return err
 				}
@@ -186,7 +186,7 @@ func (e *Encoder) encode(val reflect.Value, tagName string) error {
 			if err := e.Encoding.WriteInt32(e.w, int32(n)); err != nil {
 				return err
 			}
-			for i := 0; i < n; i++ {
+			for i := range n {
 				if err := e.Encoding.WriteInt64(e.w, val.Index(i).Int()); err != nil {
 					return err
 				}

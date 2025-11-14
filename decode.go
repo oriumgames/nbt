@@ -221,21 +221,19 @@ func (d *Decoder) unmarshalTag(val reflect.Value, t tagType, tagName string) err
 		if _, err := d.r.Read(b); err != nil {
 			return BufferOverrunError{Op: "ByteArray"}
 		}
-		value := reflect.ValueOf(b)
+		value := reflect.New(reflect.ArrayOf(int(length), byteType)).Elem()
+		reflect.Copy(value, reflect.ValueOf(b))
 
 		switch {
 		case k == reflect.Array && val.Type().Elem().Kind() == reflect.Uint8:
 			if val.Cap() != int(length) {
 				return InvalidArraySizeError{Off: d.r.off, Op: "ByteArray", GoLength: val.Cap(), NBTLength: int(length)}
 			}
-			reflect.Copy(val, value)
-		case k == reflect.Slice && val.Type().Elem().Kind() == reflect.Uint8:
-			val.SetBytes(b)
 		case isAny(val):
-			val.Set(value)
 		default:
 			return InvalidTypeError{Off: d.r.off, FieldType: val.Type(), Field: tagName, TagType: t}
 		}
+		val.Set(value)
 	case tagInt32Array:
 		s, err := d.Encoding.Int32Slice(d.r)
 		if err != nil {
@@ -482,7 +480,7 @@ func (d *Decoder) tag() (t tagType, tagName string, err error) {
 	return t, tagName, err
 }
 
-// isAny checks if a reflect.Value has the type `any` or `any`.
+// isAny checks if a reflect.Value has the type any.
 func isAny(v reflect.Value) bool {
 	return v.Kind() == reflect.Interface && v.NumMethod() == 0
 }
