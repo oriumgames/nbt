@@ -135,10 +135,7 @@ func (e littleEndian) String(r *offsetReader) (string, error) {
 // Int32Slice ...
 func (e littleEndian) Int32Slice(r *offsetReader) ([]int32, error) {
 	n, err := e.Int32(r)
-	if err != nil {
-		return nil, BufferOverrunError{Op: "Int32Slice"}
-	}
-	if n < 0 {
+	if err != nil || n < 0 {
 		return nil, BufferOverrunError{Op: "Int32Slice"}
 	}
 	b := make([]byte, n*4)
@@ -154,10 +151,7 @@ func (e littleEndian) Int32Slice(r *offsetReader) ([]int32, error) {
 // Int64Slice ...
 func (e littleEndian) Int64Slice(r *offsetReader) ([]int64, error) {
 	n, err := e.Int32(r)
-	if err != nil {
-		return nil, BufferOverrunError{Op: "Int64Slice"}
-	}
-	if n < 0 {
+	if err != nil || n < 0 {
 		return nil, BufferOverrunError{Op: "Int64Slice"}
 	}
 	b := make([]byte, n*8)
@@ -302,10 +296,7 @@ func (e bigEndian) String(r *offsetReader) (string, error) {
 // Int32Slice ...
 func (e bigEndian) Int32Slice(r *offsetReader) ([]int32, error) {
 	n, err := e.Int32(r)
-	if err != nil {
-		return nil, BufferOverrunError{Op: "Int32Slice"}
-	}
-	if n < 0 {
+	if err != nil || n < 0 {
 		return nil, BufferOverrunError{Op: "Int32Slice"}
 	}
 	b := make([]byte, n*4)
@@ -327,10 +318,7 @@ func (e bigEndian) Int32Slice(r *offsetReader) ([]int32, error) {
 // Int64Slice ...
 func (e bigEndian) Int64Slice(r *offsetReader) ([]int64, error) {
 	n, err := e.Int32(r)
-	if err != nil {
-		return nil, BufferOverrunError{Op: "Int64Slice"}
-	}
-	if n < 0 {
+	if err != nil || n < 0 {
 		return nil, BufferOverrunError{Op: "Int64Slice"}
 	}
 	b := make([]byte, n*8)
