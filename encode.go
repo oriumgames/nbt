@@ -273,17 +273,89 @@ func (e *Encoder) writeStructValues(val reflect.Value) error {
 			continue
 		}
 		tagName := fieldType.Name
-		if strings.HasSuffix(tag, ",omitempty") {
-			tag = strings.TrimSuffix(tag, ",omitempty")
+		var (
+			arrayFlag     bool
+			omitemptyFlag bool
+		)
+		if tag != "" {
+			parts := strings.Split(tag, ",")
+			if len(parts) > 0 && parts[0] != "" {
+				tagName = parts[0]
+			}
+			for _, opt := range parts[1:] {
+				switch opt {
+				case "omitempty":
+					omitemptyFlag = true
+				case "array":
+					arrayFlag = true
+				}
+			}
+		}
+
+		if omitemptyFlag {
 			if reflect.DeepEqual(fieldValue.Interface(), reflect.Zero(fieldValue.Type()).Interface()) {
 				// The tag had the ',omitempty' tag, meaning it should be omitted if it has the zero
 				// value. If this is reached, that was the case, and we skip it.
 				continue
 			}
 		}
-		if tag != "" {
-			tagName = tag
+
+		// Special handling: encode []byte/[]int32/[]int64 as TAG_*Array when arrayFlag is set.
+		if arrayFlag && fieldValue.Kind() == reflect.Slice {
+			switch fieldValue.Type().Elem().Kind() {
+			case reflect.Uint8:
+				// TAG_ByteArray
+				if err := e.writeTag(tagByteArray, tagName); err != nil {
+					return err
+				}
+				n := fieldValue.Len()
+				if err := e.Encoding.WriteInt32(e.w, int32(n)); err != nil {
+					return err
+				}
+				if n > 0 {
+					buf := make([]byte, n)
+					for j := 0; j < n; j++ {
+						buf[j] = byte(fieldValue.Index(j).Uint())
+					}
+					if _, err := e.w.Write(buf); err != nil {
+						return FailedWriteError{Op: "WriteByteArray", Off: e.w.off}
+					}
+				}
+				continue
+			case reflect.Int32:
+				// TAG_IntArray
+				if err := e.writeTag(tagInt32Array, tagName); err != nil {
+					return err
+				}
+				n := fieldValue.Len()
+				if err := e.Encoding.WriteInt32(e.w, int32(n)); err != nil {
+					return err
+				}
+				for j := 0; j < n; j++ {
+					if err := e.Encoding.WriteInt32(e.w, int32(fieldValue.Index(j).Int())); err != nil {
+						return err
+					}
+				}
+				continue
+			case reflect.Int64:
+				// TAG_LongArray
+				if err := e.writeTag(tagInt64Array, tagName); err != nil { // tagInt64Array represents TAG_LongArray
+					return err
+				}
+				n := fieldValue.Len()
+				if err := e.Encoding.WriteInt32(e.w, int32(n)); err != nil {
+					return err
+				}
+				for j := 0; j < n; j++ {
+					if err := e.Encoding.WriteInt64(e.w, fieldValue.Index(j).Int()); err != nil {
+						return err
+					}
+				}
+				continue
+			}
+			// Unsupported element type for array flag; fall through to normal encoding.
 		}
+
 		if err := e.marshal(fieldValue, tagName); err != nil {
 			return err
 		}

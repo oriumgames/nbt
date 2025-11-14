@@ -102,11 +102,17 @@ var byteType = reflect.TypeOf(byte(0))
 var int32Type = reflect.TypeOf(int32(0))
 var int64Type = reflect.TypeOf(int64(0))
 
+// fieldMeta stores metadata for a struct field: the reflect.Value and whether it has the 'array' flag.
+type fieldMeta struct {
+	v     reflect.Value
+	array bool
+}
+
 // fieldMapPool is used to store maps holding the fields of a struct. These maps are cleared each time they
 // are put back into the pool, but are re-used simply so that they need not to be re-allocated each operation.
 var fieldMapPool = sync.Pool{
 	New: func() any {
-		return map[string]reflect.Value{}
+		return map[string]fieldMeta{}
 	},
 }
 
@@ -362,7 +368,7 @@ func (d *Decoder) unmarshalTag(val reflect.Value, t tagType, tagName string) err
 		case reflect.Struct:
 			// We first fetch a fields map from the sync.Pool. These maps already have a base size obtained
 			// from when they were used, meaning we don't have to re-allocate each element.
-			fields := fieldMapPool.Get().(map[string]reflect.Value)
+			fields := fieldMapPool.Get().(map[string]fieldMeta)
 			d.populateFields(val, fields)
 			for {
 				nestedTagType, nestedTagName, err := d.tag()
@@ -376,9 +382,46 @@ func (d *Decoder) unmarshalTag(val reflect.Value, t tagType, tagName string) err
 				if !nestedTagType.IsValid() {
 					return UnknownTagError{Off: d.r.off, Op: "Struct", TagType: nestedTagType}
 				}
-				field, ok := fields[nestedTagName]
+				fm, ok := fields[nestedTagName]
 				if ok {
-					if err = d.unmarshalTag(field, nestedTagType, nestedTagName); err != nil {
+					// Special handling for 'array' flag: allow TAG_*Array into slice types.
+					if fm.array && fm.v.Kind() == reflect.Slice {
+						switch nestedTagType {
+						case tagByteArray:
+							length, err := d.Encoding.Int32(d.r)
+							if err != nil {
+								return err
+							}
+							b := make([]byte, length)
+							if _, err := d.r.Read(b); err != nil {
+								return BufferOverrunError{Op: "ByteArray"}
+							}
+							if fm.v.Type().Elem().Kind() == reflect.Uint8 {
+								fm.v.Set(reflect.ValueOf(b))
+								continue
+							}
+						case tagInt32Array:
+							s, err := d.Encoding.Int32Slice(d.r)
+							if err != nil {
+								return err
+							}
+							if fm.v.Type().Elem().Kind() == reflect.Int32 {
+								fm.v.Set(reflect.ValueOf(s))
+								continue
+							}
+						case tagInt64Array:
+							s, err := d.Encoding.Int64Slice(d.r)
+							if err != nil {
+								return err
+							}
+							if fm.v.Type().Elem().Kind() == reflect.Int64 {
+								fm.v.Set(reflect.ValueOf(s))
+								continue
+							}
+						}
+						// Fall through to normal unmarshalling if element type mismatch.
+					}
+					if err = d.unmarshalTag(fm.v, nestedTagType, nestedTagName); err != nil {
 						return err
 					}
 					continue
@@ -429,7 +472,7 @@ func (d *Decoder) unmarshalTag(val reflect.Value, t tagType, tagName string) err
 
 // populateFields populates the map passed with the fields of the reflect representation of a struct passed.
 // It takes into consideration the nbt struct field tag.
-func (d *Decoder) populateFields(val reflect.Value, m map[string]reflect.Value) {
+func (d *Decoder) populateFields(val reflect.Value, m map[string]fieldMeta) {
 	for i := 0; i < val.NumField(); i++ {
 		fieldType := val.Type().Field(i)
 		if !ast.IsExported(fieldType.Name) {
@@ -447,12 +490,20 @@ func (d *Decoder) populateFields(val reflect.Value, m map[string]reflect.Value) 
 			if tag == "-" {
 				continue
 			}
-			tag = strings.TrimSuffix(tag, ",omitempty")
-			if tag != "" {
-				name = tag
+			parts := strings.Split(tag, ",")
+			if parts[0] != "" {
+				name = parts[0]
 			}
+			arrayFlag := false
+			for _, opt := range parts[1:] {
+				if opt == "array" {
+					arrayFlag = true
+				}
+			}
+			m[name] = fieldMeta{v: field, array: arrayFlag}
+			continue
 		}
-		m[name] = field
+		m[name] = fieldMeta{v: field}
 	}
 }
 
