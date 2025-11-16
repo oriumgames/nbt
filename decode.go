@@ -509,17 +509,17 @@ func (d *Decoder) populateFields(val reflect.Value, m map[string]fieldMeta, catc
 			if tag == "-" {
 				continue
 			}
-			parts := strings.Split(tag, ",")
-			if parts[0] != "" {
-				name = parts[0]
-			}
 			if name == "*" {
 				elem := field.Type().Elem()
 				if field.Type().Kind() == reflect.Map && field.Type().Key().Kind() == reflect.String && elem.Kind() == reflect.Interface && elem.NumMethod() == 0 {
 					m["*"] = fieldMeta{v: field, catchAll: true}
 				}
-				*catchAllFields += 1
+				*catchAllFields++
 				continue
+			}
+			parts := strings.Split(tag, ",")
+			if parts[0] != "" {
+				name = parts[0]
 			}
 			arrayFlag := false
 			for _, opt := range parts[1:] {
