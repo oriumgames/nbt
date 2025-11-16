@@ -300,6 +300,19 @@ func (e *Encoder) writeStructValues(val reflect.Value) error {
 			}
 		}
 
+		if tagName == "*" {
+			// We've got a catch-all field. We marshal each of its values into the struct.
+			if fieldValue.Kind() == reflect.Map {
+				iter := fieldValue.MapRange()
+				for iter.Next() {
+					if err := e.marshal(iter.Value(), iter.Key().String()); err != nil {
+						return err
+					}
+				}
+			}
+			continue
+		}
+
 		// Special handling: encode []byte/[]int32/[]int64 as TAG_*Array when arrayFlag is set.
 		if arrayFlag && fieldValue.Kind() == reflect.Slice {
 			switch fieldValue.Type().Elem().Kind() {
@@ -314,7 +327,7 @@ func (e *Encoder) writeStructValues(val reflect.Value) error {
 				}
 				if n > 0 {
 					buf := make([]byte, n)
-					for j := 0; j < n; j++ {
+					for j := range n {
 						buf[j] = byte(fieldValue.Index(j).Uint())
 					}
 					if _, err := e.w.Write(buf); err != nil {
@@ -331,7 +344,7 @@ func (e *Encoder) writeStructValues(val reflect.Value) error {
 				if err := e.Encoding.WriteInt32(e.w, int32(n)); err != nil {
 					return err
 				}
-				for j := 0; j < n; j++ {
+				for j := range n {
 					if err := e.Encoding.WriteInt32(e.w, int32(fieldValue.Index(j).Int())); err != nil {
 						return err
 					}
@@ -346,7 +359,7 @@ func (e *Encoder) writeStructValues(val reflect.Value) error {
 				if err := e.Encoding.WriteInt32(e.w, int32(n)); err != nil {
 					return err
 				}
-				for j := 0; j < n; j++ {
+				for j := range n {
 					if err := e.Encoding.WriteInt64(e.w, fieldValue.Index(j).Int()); err != nil {
 						return err
 					}

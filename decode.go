@@ -104,8 +104,9 @@ var int64Type = reflect.TypeOf(int64(0))
 
 // fieldMeta stores metadata for a struct field: the reflect.Value and whether it has the 'array' flag.
 type fieldMeta struct {
-	v     reflect.Value
-	array bool
+	v        reflect.Value
+	array    bool
+	catchAll bool
 }
 
 // fieldMapPool is used to store maps holding the fields of a struct. These maps are cleared each time they
@@ -369,7 +370,11 @@ func (d *Decoder) unmarshalTag(val reflect.Value, t tagType, tagName string) err
 			// We first fetch a fields map from the sync.Pool. These maps already have a base size obtained
 			// from when they were used, meaning we don't have to re-allocate each element.
 			fields := fieldMapPool.Get().(map[string]fieldMeta)
-			d.populateFields(val, fields)
+			var catchAllFields int
+			d.populateFields(val, fields, &catchAllFields)
+			if catchAllFields > 1 {
+				return MultipleCatchAllFieldsError{StructType: val.Type()}
+			}
 			for {
 				nestedTagType, nestedTagName, err := d.tag()
 				if err != nil {
@@ -426,6 +431,20 @@ func (d *Decoder) unmarshalTag(val reflect.Value, t tagType, tagName string) err
 					}
 					continue
 				}
+
+				if catchAll, ok := fields["*"]; ok {
+					// A catch-all field was present in the struct. We decode the value into a new interface and
+					// set it in the map.
+					var v any
+					if err := d.unmarshalTag(reflect.ValueOf(&v).Elem(), nestedTagType, nestedTagName); err != nil {
+						return err
+					}
+					if catchAll.v.IsNil() {
+						catchAll.v.Set(reflect.MakeMap(catchAll.v.Type()))
+					}
+					catchAll.v.SetMapIndex(reflect.ValueOf(nestedTagName), reflect.ValueOf(v))
+					continue
+				}
 				// We return an error if the struct does not have one of the fields found in the compound. It
 				// is rather important no data is lost during the decoding.
 				return UnexpectedNamedTagError{Off: d.r.off, TagName: tagName + "." + nestedTagName, TagType: nestedTagType}
@@ -472,7 +491,7 @@ func (d *Decoder) unmarshalTag(val reflect.Value, t tagType, tagName string) err
 
 // populateFields populates the map passed with the fields of the reflect representation of a struct passed.
 // It takes into consideration the nbt struct field tag.
-func (d *Decoder) populateFields(val reflect.Value, m map[string]fieldMeta) {
+func (d *Decoder) populateFields(val reflect.Value, m map[string]fieldMeta, catchAllFields *int) {
 	for i := 0; i < val.NumField(); i++ {
 		fieldType := val.Type().Field(i)
 		if !ast.IsExported(fieldType.Name) {
@@ -483,7 +502,7 @@ func (d *Decoder) populateFields(val reflect.Value, m map[string]fieldMeta) {
 		name := fieldType.Name
 		if fieldType.Anonymous {
 			// We got an anonymous struct field, so we decode that into the same level.
-			d.populateFields(field, m)
+			d.populateFields(field, m, catchAllFields)
 			continue
 		}
 		if tag, ok := fieldType.Tag.Lookup("nbt"); ok {
@@ -493,6 +512,14 @@ func (d *Decoder) populateFields(val reflect.Value, m map[string]fieldMeta) {
 			parts := strings.Split(tag, ",")
 			if parts[0] != "" {
 				name = parts[0]
+			}
+			if name == "*" {
+				elem := field.Type().Elem()
+				if field.Type().Kind() == reflect.Map && field.Type().Key().Kind() == reflect.String && elem.Kind() == reflect.Interface && elem.NumMethod() == 0 {
+					m["*"] = fieldMeta{v: field, catchAll: true}
+				}
+				*catchAllFields += 1
+				continue
 			}
 			arrayFlag := false
 			for _, opt := range parts[1:] {

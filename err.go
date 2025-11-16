@@ -168,3 +168,13 @@ type InvalidVarintError struct {
 func (err InvalidVarintError) Error() string {
 	return fmt.Sprintf("nbt: varint did not terminate after %v bytes at offset %v", err.N, err.Off)
 }
+
+// MultipleCatchAllFieldsError is returned when a struct is decoded that has more than one field with the `nbt:"*"` tag.
+type MultipleCatchAllFieldsError struct {
+	StructType reflect.Type
+}
+
+// Error ...
+func (err MultipleCatchAllFieldsError) Error() string {
+	return fmt.Sprintf("nbt: multiple catch-all fields found in struct %v", err.StructType)
+}
