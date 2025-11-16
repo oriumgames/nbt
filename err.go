@@ -133,7 +133,7 @@ func (err InvalidStringError) Error() string {
 	return fmt.Sprintf("nbt: string at offset %v is not valid: %v (len=%v)", err.Off, err.Err, err.N)
 }
 
-const maximumNestingDepth = 512
+const maximumNestingDepth = 1024
 
 // MaximumDepthReachedError is returned if the maximum depth of 512 compound/list tags has been reached while
 // reading or writing NBT.
