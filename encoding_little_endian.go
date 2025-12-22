@@ -164,6 +164,32 @@ func (e littleEndian) Int64Slice(r *offsetReader) ([]int64, error) {
 	return unsafe.Slice((*int64)(unsafe.Pointer(&b[0])), n), nil
 }
 
+// WriteInt32Slice ...
+func (e littleEndian) WriteInt32Slice(w *offsetWriter, x []int32) error {
+	if err := e.WriteInt32(w, int32(len(x))); err != nil {
+		return err
+	}
+	for _, v := range x {
+		if err := e.WriteInt32(w, v); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// WriteInt64Slice ...
+func (e littleEndian) WriteInt64Slice(w *offsetWriter, x []int64) error {
+	if err := e.WriteInt32(w, int32(len(x))); err != nil {
+		return err
+	}
+	for _, v := range x {
+		if err := e.WriteInt64(w, v); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type bigEndian struct{}
 
 // WriteInt16 ...
@@ -337,4 +363,30 @@ func (e bigEndian) Int64Slice(r *offsetReader) ([]int64, error) {
 		b[off+3], b[off+4] = b[off+4], b[off+3]
 	}
 	return unsafe.Slice((*int64)(unsafe.Pointer(&b[0])), n), nil
+}
+
+// WriteInt32Slice ...
+func (e bigEndian) WriteInt32Slice(w *offsetWriter, x []int32) error {
+	if err := e.WriteInt32(w, int32(len(x))); err != nil {
+		return err
+	}
+	for _, v := range x {
+		if err := e.WriteInt32(w, v); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// WriteInt64Slice ...
+func (e bigEndian) WriteInt64Slice(w *offsetWriter, x []int64) error {
+	if err := e.WriteInt32(w, int32(len(x))); err != nil {
+		return err
+	}
+	for _, v := range x {
+		if err := e.WriteInt64(w, v); err != nil {
+			return err
+		}
+	}
+	return nil
 }

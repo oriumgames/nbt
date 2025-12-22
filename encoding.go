@@ -23,6 +23,8 @@ type Encoding interface {
 	WriteFloat32(w *offsetWriter, x float32) error
 	WriteFloat64(w *offsetWriter, x float64) error
 	WriteString(w *offsetWriter, x string) error
+	WriteInt32Slice(w *offsetWriter, x []int32) error
+	WriteInt64Slice(w *offsetWriter, x []int64) error
 }
 
 var (
@@ -215,6 +217,32 @@ func (e networkLittleEndian) Int64Slice(r *offsetReader) ([]int64, error) {
 		}
 	}
 	return m, nil
+}
+
+// WriteInt32Slice ...
+func (e networkLittleEndian) WriteInt32Slice(w *offsetWriter, x []int32) error {
+	if err := e.WriteInt32(w, int32(len(x))); err != nil {
+		return err
+	}
+	for _, v := range x {
+		if err := e.WriteInt32(w, v); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// WriteInt64Slice ...
+func (e networkLittleEndian) WriteInt64Slice(w *offsetWriter, x []int64) error {
+	if err := e.WriteInt32(w, int32(len(x))); err != nil {
+		return err
+	}
+	for _, v := range x {
+		if err := e.WriteInt64(w, v); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type networkBigEndian struct{ bigEndian }

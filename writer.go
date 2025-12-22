@@ -12,6 +12,29 @@ type offsetWriter struct {
 	WriteByte func(byte) error
 }
 
+// newOffsetWriter creates a new offsetWriter wrapping the given io.Writer.
+func newOffsetWriter(w io.Writer) *offsetWriter {
+	ow := &offsetWriter{Writer: w}
+	if bw, ok := w.(io.ByteWriter); ok {
+		ow.WriteByte = func(b byte) error {
+			err := bw.WriteByte(b)
+			if err == nil {
+				ow.off++
+			}
+			return err
+		}
+	} else {
+		ow.WriteByte = func(b byte) error {
+			_, err := w.Write([]byte{b})
+			if err == nil {
+				ow.off++
+			}
+			return err
+		}
+	}
+	return ow
+}
+
 // Write writes a byte slice to the underlying io.Writer. It increases the byte offset by exactly n.
 func (w *offsetWriter) Write(b []byte) (n int, err error) {
 	n, err = w.Writer.Write(b)

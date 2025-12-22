@@ -97,10 +97,10 @@ func UnmarshalEncoding(data []byte, v any, encoding Encoding) error {
 }
 
 // These types are initialised once and re-used for each Unmarshal call.
-var stringType = reflect.TypeOf("")
-var byteType = reflect.TypeOf(byte(0))
-var int32Type = reflect.TypeOf(int32(0))
-var int64Type = reflect.TypeOf(int64(0))
+var stringType = reflect.TypeFor[string]()
+var byteType = reflect.TypeFor[byte]()
+var int32Type = reflect.TypeFor[int32]()
+var int64Type = reflect.TypeFor[int64]()
 
 // fieldMeta stores metadata for a struct field: the reflect.Value and whether it has the 'array' flag.
 type fieldMeta struct {
